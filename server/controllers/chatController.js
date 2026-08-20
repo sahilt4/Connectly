@@ -234,6 +234,11 @@ export const deleteConversation = async (req, res, next) => {
       success: true,
       message: 'Conversation deleted successfully.',
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Clear a conversation's messages
 // @route   DELETE /api/chats/:id/messages
 // @access  Private
