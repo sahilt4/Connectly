@@ -10,7 +10,7 @@ import { MediaLightbox } from './MediaLightbox';
 import { ForwardModal } from './ForwardModal';
 import { SharedMediaDrawer } from './SharedMediaDrawer';
 import { DisappearingMessagesModal } from './DisappearingMessagesModal';
-import { formatMessageDateHeader } from '../../utils/date';
+import { formatMessageDateHeader, formatLastSeen } from '../../utils/date';
 import {
   ArrowLeft,
   Phone,
@@ -206,6 +206,8 @@ export const ChatRoom = ({ onBack, onOpenProfile, onOpenReport, onStartCall }) =
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                     online
                   </span>
+                ) : recipient?.lastActive ? (
+                  `last seen ${formatLastSeen(recipient.lastActive)}`
                 ) : (
                   `@${recipient?.username || 'user'}`
                 )}
@@ -312,6 +314,28 @@ export const ChatRoom = ({ onBack, onOpenProfile, onOpenReport, onStartCall }) =
                 >
                   <Flag className="w-4 h-4 text-rose-500" />
                   Report User
+                </button>
+
+                <div className="border-t border-white/10 my-1" />
+
+                <button
+                  onClick={async () => {
+                    setShowOptionsDropdown(false);
+                    if (window.confirm('Are you sure you want to clear all messages in this chat? This cannot be undone.')) {
+                      try {
+                        const res = await api.delete(`/chats/${conversationId}/messages`);
+                        if (res.data.success) {
+                           window.location.reload();
+                        }
+                      } catch (err) {
+                        alert('Failed to clear conversation');
+                      }
+                    }
+                  }}
+                  className="w-full text-left px-3.5 py-2.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center gap-2.5"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-500" />
+                  Clear Conversation
                 </button>
 
                 <div className="border-t border-white/10 my-1" />

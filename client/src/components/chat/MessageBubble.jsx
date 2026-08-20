@@ -87,7 +87,7 @@ export const MessageBubble = ({
   const renderStatusTicks = () => {
     if (!isSender) return null;
     if (message.status === 'seen') {
-      return <CheckCheck className="w-3.5 h-3.5 text-emerald-200" title="Seen" />;
+      return <CheckCheck className="w-3.5 h-3.5 text-blue-300" title="Seen" />;
     }
     if (message.status === 'delivered') {
       return <CheckCheck className="w-3.5 h-3.5 text-white/70" title="Delivered" />;

@@ -4,6 +4,7 @@ import {
   getOrCreateConversation,
   updateDisappearingSettings,
   deleteConversation,
+  clearConversationMessages,
 } from '../controllers/chatController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -14,6 +15,7 @@ router.use(protect);
 router.get('/', getConversations);
 router.post('/', getOrCreateConversation);
 router.put('/:id/disappearing', updateDisappearingSettings);
+router.delete('/:id/messages', clearConversationMessages);
 router.delete('/:id', deleteConversation);
 
 export default router;

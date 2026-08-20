@@ -97,9 +97,26 @@ export const getStoriesFeed = async (req, res, next) => {
     const now = new Date();
     const currentUser = await User.findById(req.user._id);
 
-    // Fetch all unexpired stories
+    // Fetch accepted connections
+    const Connection = (await import('../models/Connection.js')).default;
+    const connections = await Connection.find({
+      $or: [{ requester: req.user._id }, { recipient: req.user._id }],
+      status: 'accepted',
+    });
+
+    const connectionIds = connections.map((c) =>
+      c.requester.toString() === req.user._id.toString()
+        ? c.recipient.toString()
+        : c.requester.toString()
+    );
+
+    // Include the user's own ID
+    connectionIds.push(req.user._id.toString());
+
+    // Fetch all unexpired stories for connected users and self
     const activeStories = await Story.find({
       expiresAt: { $gt: now },
+      author: { $in: connectionIds },
     })
       .populate('author', 'name username avatar closeFriends')
       .populate('viewers.user', 'name username avatar')

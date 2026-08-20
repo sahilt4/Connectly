@@ -256,7 +256,7 @@ export const SettingsView = () => {
       </div>
 
       {/* Main Settings Content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
         {/* Tab 1: Profile & Status */}
         {activeTab === 'profile' && (
           <form onSubmit={handleSaveProfile} className="space-y-5">

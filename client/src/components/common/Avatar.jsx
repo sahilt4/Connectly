@@ -51,7 +51,7 @@ export const Avatar = ({
   };
 
   return (
-    <div className={`relative inline-flex flex-shrink-0 select-none ${className}`}>
+    <div className={`relative inline-flex flex-shrink-0 select-none rounded-full ${className}`}>
       {src ? (
         <img
           src={src}

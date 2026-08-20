@@ -48,3 +48,19 @@ export const formatFileSize = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
+
+export const formatLastSeen = (dateInput) => {
+  if (!dateInput) return '';
+  const date = new Date(dateInput);
+  
+  if (isToday(date)) {
+    return 'today at ' + format(date, 'h:mm a');
+  }
+  if (isYesterday(date)) {
+    return 'yesterday at ' + format(date, 'h:mm a');
+  }
+  if (isThisWeek(date)) {
+    return format(date, 'EEEE') + ' at ' + format(date, 'h:mm a');
+  }
+  return format(date, 'MMM d, yyyy');
+};

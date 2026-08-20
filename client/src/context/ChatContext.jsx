@@ -276,7 +276,10 @@ export const ChatProvider = ({ children }) => {
     if (socket && socket.connected) {
       socket.emit('send_message', payload, (res) => {
         if (res?.success) {
-          setMessages((prev) => [...prev, res.message]);
+          setMessages((prev) => {
+            if (prev.some((m) => m._id === res.message._id)) return prev;
+            return [...prev, res.message];
+          });
           setConversations((prev) => {
             const index = prev.findIndex((c) => c._id === activeConversation._id);
             if (index > -1) {
