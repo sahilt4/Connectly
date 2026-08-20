@@ -122,8 +122,14 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/safety', safetyRoutes);
 
 // Frontend Client Static Files (Serve React Vite build if present)
-const clientDistPath = path.resolve(__dirname, '../client/dist');
-if (fs.existsSync(clientDistPath)) {
+const possibleDistPaths = [
+  path.resolve(__dirname, '../client/dist'),
+  path.resolve(process.cwd(), 'client/dist'),
+  path.resolve(process.cwd(), 'dist'),
+];
+const clientDistPath = possibleDistPaths.find((p) => fs.existsSync(p));
+
+if (clientDistPath) {
   console.log(`🌐 Serving compiled frontend SPA from: ${clientDistPath}`);
   app.use(express.static(clientDistPath));
 
