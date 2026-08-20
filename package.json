@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "start": "node server/server.js",
+    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
     "server": "npm --prefix server start",
     "server:dev": "npm --prefix server run dev",
     "client": "npm --prefix client run dev",

@@ -44,6 +44,7 @@ connectDB();
 app.use(
   helmet({
     crossOriginResourcePolicy: false, // allow loading local uploaded media
+    contentSecurityPolicy: false, // allow modern inline scripts and styles for SPA
   })
 );
 
@@ -99,15 +100,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Root Health Check Route for Render & Cloud Monitors
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'Connectly API',
-  });
-});
-
-// Dedicated health endpoints
+// Dedicated health endpoints for Render & Cloud Monitors
 app.get(['/health', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -127,6 +120,33 @@ app.use('/api/connections', connectionRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/safety', safetyRoutes);
+
+// Frontend Client Static Files (Serve React Vite build if present)
+const clientDistPath = path.resolve(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  console.log(`🌐 Serving compiled frontend SPA from: ${clientDistPath}`);
+  app.use(express.static(clientDistPath));
+
+  // Catch-all route for Single Page Application client-side routing
+  app.get('*', (req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/uploads') ||
+      req.path.startsWith('/socket.io')
+    ) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+} else {
+  // If frontend is not built in this container, root endpoint returns API status
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      service: 'Connectly API',
+    });
+  });
+}
 
 // Error Handler
 app.use(errorHandler);
