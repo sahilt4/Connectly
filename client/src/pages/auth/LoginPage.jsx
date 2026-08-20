@@ -49,7 +49,7 @@ export const LoginPage = () => {
           Welcome to <span className="gradient-text-primary">Connectly</span>
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-          Sign in to your private communication space
+          Sign in to your account
         </p>
       </div>
 

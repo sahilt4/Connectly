@@ -3,6 +3,8 @@ import { useChat } from '../../context/ChatContext';
 import { useSocket } from '../../context/SocketContext';
 import { Avatar } from '../common/Avatar';
 import { StoryBar } from '../stories/StoryBar';
+import { Modal } from '../common/Modal';
+import { Button } from '../common/Button';
 import { formatChatListTime } from '../../utils/date';
 import {
   Search,
@@ -12,18 +14,21 @@ import {
   Mic,
   Video,
   Clock,
-  Sparkles,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const ChatList = ({
   onSelectChat,
   onNavigateToPeople,
   onOpenStoryCreator,
-  onOpenStoryViewer,
+  onOpenViewer,
 }) => {
-  const { conversations, activeConversation, loadingChats } = useChat();
+  const { conversations, activeConversation, loadingChats, deleteConversationAction } = useChat();
   const { isUserOnline } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
+  const [conversationToDelete, setConversationToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filteredConversations = conversations.filter((c) => {
     if (!c.recipient) return false;
@@ -32,6 +37,20 @@ export const ChatList = ({
     const idMatch = c.recipient.publicId?.toLowerCase().includes(searchQuery.toLowerCase());
     return nameMatch || usernameMatch || idMatch;
   });
+
+  const handleDeleteConfirm = async () => {
+    if (!conversationToDelete) return;
+    try {
+      setDeleting(true);
+      await deleteConversationAction(conversationToDelete._id);
+      setConversationToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+      alert('Failed to delete conversation. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const renderLastMessageSnippet = (conv) => {
     const msg = conv.lastMessage;
@@ -113,7 +132,7 @@ export const ChatList = ({
       {/* 24-Hour Stories Carousel Bar */}
       <StoryBar
         onOpenCreator={onOpenStoryCreator}
-        onOpenViewer={onOpenStoryViewer}
+        onOpenViewer={onOpenViewer}
       />
 
       {/* Conversations List */}
@@ -201,15 +220,30 @@ export const ChatList = ({
                       )}
                     </div>
 
-                    <span
-                      className={`text-[10px] flex-shrink-0 ${
-                        hasUnread
-                          ? 'font-bold text-indigo-500 dark:text-indigo-400'
-                          : 'text-slate-400 dark:text-slate-500'
-                      }`}
-                    >
-                      {conv.lastMessageAt ? formatChatListTime(conv.lastMessageAt) : ''}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] flex-shrink-0 ${
+                          hasUnread
+                            ? 'font-bold text-indigo-500 dark:text-indigo-400'
+                            : 'text-slate-400 dark:text-slate-500'
+                        }`}
+                      >
+                        {conv.lastMessageAt ? formatChatListTime(conv.lastMessageAt) : ''}
+                      </span>
+
+                      {/* Delete Conversation Trigger Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConversationToDelete(conv);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+                        title="Delete conversation"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
@@ -241,6 +275,44 @@ export const ChatList = ({
           })
         )}
       </div>
+
+      {/* Delete Conversation Confirmation Modal */}
+      <Modal
+        isOpen={!!conversationToDelete}
+        onClose={() => setConversationToDelete(null)}
+        title="Delete Conversation"
+        maxWidth="max-w-sm"
+      >
+        <div className="space-y-4 pt-1">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0" />
+            <p className="text-xs font-semibold leading-relaxed">
+              Are you sure you want to delete this chat with <strong className="text-slate-900 dark:text-slate-100">{conversationToDelete?.recipient?.name}</strong>?
+            </p>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            This will permanently remove the conversation and its message history from your chat list.
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setConversationToDelete(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteConfirm}
+              loading={deleting}
+            >
+              Delete Chat
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

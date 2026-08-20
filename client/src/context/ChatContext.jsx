@@ -389,6 +389,23 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  const deleteConversationAction = async (conversationId) => {
+    try {
+      const res = await api.delete(`/chats/${conversationId}`);
+      if (res.data.success) {
+        setConversations((prev) => prev.filter((c) => c._id !== conversationId));
+        if (activeConversation?._id === conversationId) {
+          setActiveConversation(null);
+          setMessages([]);
+        }
+      }
+      return res.data;
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+      throw err;
+    }
+  };
+
   const isRecipientTyping =
     activeConversation &&
     typingUsers.get(activeConversation._id)?.has(activeConversation.recipient?._id);
@@ -413,6 +430,7 @@ export const ChatProvider = ({ children }) => {
         editMessageText,
         deleteMessageAction,
         reactToMessageAction,
+        deleteConversationAction,
       }}
     >
       {children}

@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -10,58 +9,57 @@ const __dirname = path.dirname(__filename);
 let mongoMemoryServer = null;
 
 export const connectDB = async () => {
-  try {
-    let mongoUri = process.env.MONGODB_URI;
+  const mongoUri = process.env.MONGODB_URI;
+  const isProduction = process.env.NODE_ENV === 'production';
 
-    if (!mongoUri) {
-      console.log('⚡ Initializing persistent local MongoDB database...');
-      const dbPath = path.resolve(__dirname, '../.db_data');
-
-      if (!fs.existsSync(dbPath)) {
-        fs.mkdirSync(dbPath, { recursive: true });
-      }
-
-      mongoMemoryServer = await MongoMemoryServer.create({
-        instance: {
-          dbPath,
-          storageEngine: 'wiredTiger',
-        },
+  // 1. If MONGODB_URI is provided, connect to it (Atlas or remote MongoDB)
+  if (mongoUri && mongoUri.trim() !== '') {
+    try {
+      console.log('⚡ Connecting to configured MongoDB instance...');
+      const conn = await mongoose.connect(mongoUri.trim(), {
+        serverSelectionTimeoutMS: 10000,
       });
+      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      return;
+    } catch (error) {
+      console.error(`❌ MongoDB Connection Error: ${error.message}`);
+      if (isProduction) {
+        console.error('⚠️ In production, please verify that your MONGODB_URI credentials are valid and IP 0.0.0.0/0 is allowed in MongoDB Atlas.');
+        return;
+      }
+      console.log('🔄 Development mode: Attempting fallback to local database...');
+    }
+  }
 
-      mongoUri = mongoMemoryServer.getUri();
-      console.log(`📦 Persistent Local MongoDB running (data saved in server/.db_data)`);
+  // 2. In Production without MONGODB_URI, log clear error
+  if (isProduction) {
+    console.error('❌ [Database Error] MONGODB_URI environment variable is not defined!');
+    console.error('👉 Please add MONGODB_URI in your Render Dashboard -> Environment variables.');
+    return;
+  }
+
+  // 3. In Development only: Use local persistent MongoDB fallback
+  try {
+    console.log('⚡ Initializing persistent local MongoDB database for development...');
+    const { MongoMemoryServer } = await import('mongodb-memory-server');
+    const dbPath = path.resolve(__dirname, '../.db_data');
+
+    if (!fs.existsSync(dbPath)) {
+      fs.mkdirSync(dbPath, { recursive: true });
     }
 
-    const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000,
+    mongoMemoryServer = await MongoMemoryServer.create({
+      instance: {
+        dbPath,
+        storageEngine: 'wiredTiger',
+      },
     });
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    if (!mongoMemoryServer) {
-      try {
-        console.log('🔄 Attempting fallback to persistent local MongoDB...');
-        const dbPath = path.resolve(__dirname, '../.db_data');
-        if (!fs.existsSync(dbPath)) {
-          fs.mkdirSync(dbPath, { recursive: true });
-        }
-        mongoMemoryServer = await MongoMemoryServer.create({
-          instance: {
-            dbPath,
-            storageEngine: 'wiredTiger',
-          },
-        });
-        const fallbackUri = mongoMemoryServer.getUri();
-        const conn = await mongoose.connect(fallbackUri);
-        console.log(`✅ Fallback Persistent MongoDB Connected: ${conn.connection.host}`);
-      } catch (fallbackError) {
-        console.error('❌ Failed to connect to fallback MongoDB:', fallbackError.message);
-        process.exit(1);
-      }
-    } else {
-      process.exit(1);
-    }
+    const fallbackUri = mongoMemoryServer.getUri();
+    const conn = await mongoose.connect(fallbackUri);
+    console.log(`📦 Persistent Local MongoDB running at: ${conn.connection.host} (server/.db_data)`);
+  } catch (fallbackError) {
+    console.error('❌ Failed to initialize local MongoDB:', fallbackError.message);
   }
 };
 

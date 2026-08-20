@@ -203,3 +203,38 @@ export const updateDisappearingSettings = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Delete a conversation and its messages
+// @route   DELETE /api/chats/:id
+// @access  Private
+export const deleteConversation = async (req, res, next) => {
+  try {
+    const conversationId = req.params.id;
+    const currentUserId = req.user._id;
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      participants: currentUserId,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found or you are not a participant.',
+      });
+    }
+
+    // Delete all messages belonging to this conversation
+    await Message.deleteMany({ conversationId });
+
+    // Delete the conversation document
+    await Conversation.findByIdAndDelete(conversationId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Conversation deleted successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};

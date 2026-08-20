@@ -5,6 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -27,44 +28,64 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Ensure local uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 const app = express();
 const server = http.createServer(app);
 
 // Connect to MongoDB
 connectDB();
 
-// Security Middleware
+// Security Headers Middleware
 app.use(
   helmet({
     crossOriginResourcePolicy: false, // allow loading local uploaded media
   })
 );
 
-const allowedOrigins = [
-  process.env.CLIENT_URL || 'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'http://localhost:3000',
-];
+// Dynamic CORS configuration (supports Render, Vercel, Netlify, and local development)
+const getNormalizedOrigins = () => {
+  const defaults = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'];
+  if (!process.env.CLIENT_URL) return defaults;
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(null, true);
-      }
-    },
-    credentials: true,
-  })
-);
+  // Supports single or comma-separated CLIENT_URL values with trailing slashes trimmed
+  const clientUrls = process.env.CLIENT_URL.split(',').map((url) => url.trim().replace(/\/$/, ''));
+  return [...new Set([...clientUrls, ...defaults])];
+};
+
+const allowedOrigins = getNormalizedOrigins();
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow non-browser requests (health checks, curl, mobile native, server-to-server)
+    if (!origin) return callback(null, true);
+
+    const cleanOrigin = origin.replace(/\/$/, '');
+    const isAllowed = allowedOrigins.some((allowed) => allowed === cleanOrigin || allowed === origin);
+
+    if (isAllowed || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    return callback(null, true); // Permissive callback for seamless deployment across subdomains
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
+app.use(cors(corsOptions));
 
 // Body Parsers
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // Static uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // Rate Limiting for Auth
 const authLimiter = rateLimit({
@@ -78,6 +99,24 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Root Health Check Route for Render & Cloud Monitors
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'Connectly API',
+  });
+});
+
+// Dedicated health endpoints
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'Connectly Communication API',
+    uptime: Math.floor(process.uptime()),
+  });
+});
+
 // API Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
@@ -89,22 +128,13 @@ app.use('/api/calls', callRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/safety', safetyRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'online',
-    timestamp: new Date(),
-    service: 'Connectly Communication API',
-  });
-});
-
 // Error Handler
 app.use(errorHandler);
 
-// Setup Socket.IO
+// Setup Socket.IO on the same HTTP server
 const io = new SocketIOServer(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: corsOptions.origin,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -117,8 +147,10 @@ initSocket(io);
 // Make io accessible in req handlers
 app.set('io', io);
 
-const PORT = process.env.PORT || 5000;
+// Dynamic PORT assignment (Render assigns process.env.PORT, fallback to 5000 for local dev)
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
+const HOST = '0.0.0.0';
 
-server.listen(PORT, () => {
-  console.log(`🚀 Nova Communication Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Connectly Server running in ${process.env.NODE_ENV || 'development'} mode on http://${HOST}:${PORT}`);
 });
