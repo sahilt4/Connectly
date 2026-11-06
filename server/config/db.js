@@ -20,6 +20,17 @@ export const connectDB = async () => {
         serverSelectionTimeoutMS: 10000,
       });
       console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      // Clean up legacy stale id_1 index on users collection if it exists
+      try {
+        const usersCollection = conn.connection.collection('users');
+        const indexes = await usersCollection.indexes();
+        if (indexes.some((idx) => idx.name === 'id_1')) {
+          await usersCollection.dropIndex('id_1');
+          console.log('🧹 Dropped legacy index id_1 from users collection');
+        }
+      } catch (idxErr) {
+        // Ignore if collection or index does not exist
+      }
       return;
     } catch (error) {
       console.error(`❌ MongoDB Connection Error: ${error.message}`);
