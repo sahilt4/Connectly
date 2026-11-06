@@ -37,6 +37,9 @@ if (!fs.existsSync(uploadsDir)) {
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy header when running behind reverse proxies (e.g. Render, Heroku, Nginx)
+app.set('trust proxy', 1);
+
 // Connect to MongoDB
 connectDB();
 
