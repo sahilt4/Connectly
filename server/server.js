@@ -101,6 +101,7 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // Dedicated health endpoints for Render & Cloud Monitors
